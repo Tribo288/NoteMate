@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>NoteMate++</title>
+<title>NoteMate</title>
 <style>
 body{margin:0;font-family:Arial,sans-serif;background:#e6f0ff;display:flex;}
 .sidebar{width:220px;background:#004aad;color:white;height:100vh;padding:20px 10px;box-sizing:border-box;}
@@ -24,81 +24,106 @@ body{margin:0;font-family:Arial,sans-serif;background:#e6f0ff;display:flex;}
 </style>
 </head>
 <body>
+
 <div class="sidebar">
-<div onclick="openNote()">📝 Ghi chú</div>
-<div onclick="toggleChat()">💬 Chatbot Gemini</div>
-<div onclick="alert('Chưa kết nối!')">🌐 Cộng đồng</div>
+  <div onclick="openNote()">📝 Ghi chú</div>
+  <div onclick="toggleChat()">💬 Chatbot</div>
+  <div onclick="alert('Chưa kết nối!')">🌐 Cộng đồng</div>
 </div>
 
 <div class="main">
-<div class="record-box">
-<h2>Ghi âm</h2>
-<button id="recordBtn" class="record-btn">Bắt đầu ghi</button>
-<div class="audio-list" id="audioList"></div>
-</div>
+  <div class="record-box">
+    <h2>Ghi âm</h2>
+    <button id="recordBtn" class="record-btn">Bắt đầu ghi</button>
+    <div class="audio-list" id="audioList"></div>
+  </div>
 </div>
 
+<!-- Chat Popup -->
 <div id="chatPopup">
-<header id="chatHeader">Gemini Chatbot</header>
-<div id="messages"></div>
-<div id="chatInput">
-<input id="msgInput" placeholder="Nhập câu hỏi..."/>
-<button onclick="sendMessage()">Gửi</button>
-</div>
+  <header id="chatHeader">Chatbot</header>
+  <div id="messages"></div>
+  <div id="chatInput">
+    <input id="msgInput" placeholder="Nhập câu hỏi..." />
+    <button onclick="sendMessage()">Gửi</button>
+  </div>
 </div>
 
+<!-- Note Popup -->
 <div id="notePopup">
-<h3>Ghi chú</h3>
-<textarea id="noteText" placeholder="Nhập văn bản..."></textarea><br/>
-<button class="close-btn" onclick="closeNote()">Đóng</button>
+  <h3>Ghi chú</h3>
+  <textarea id="noteText" placeholder="Nhập văn bản..."></textarea><br/>
+  <button class="close-btn" onclick="closeNote()">Đóng</button>
 </div>
 
 <script>
 // --- Ghi âm ---
-let mediaRecorder,chunks=[],isRecording=false;
-document.getElementById("recordBtn").onclick=async function(){
-if(!isRecording){
-const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-mediaRecorder=new MediaRecorder(stream);
-mediaRecorder.start();
-isRecording=true;
-this.innerText="Dừng ghi";
-mediaRecorder.ondataavailable=e=>chunks.push(e.data);
-mediaRecorder.onstop=()=>{
-const blob=new Blob(chunks,{type:"audio/webm"});
-chunks=[];
-const url=URL.createObjectURL(blob);
-const audio=document.createElement("audio");
-audio.controls=true;
-audio.src=url;
-document.getElementById("audioList").appendChild(audio);
-};
-}else{mediaRecorder.stop();isRecording=false;this.innerText="Bắt đầu ghi";}
+let mediaRecorder, chunks=[], isRecording=false;
+document.getElementById("recordBtn").onclick = async function() {
+  if(!isRecording){
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.start();
+    isRecording = true;
+    this.innerText = "Dừng ghi";
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks,{type:"audio/webm"});
+      chunks = [];
+      const url = URL.createObjectURL(blob);
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = url;
+      document.getElementById("audioList").appendChild(audio);
+    };
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    this.innerText = "Bắt đầu ghi";
+  }
 };
 
-// --- Chatbot Gemini ---
-function toggleChat(){const chat=document.getElementById("chatPopup");chat.style.display=(chat.style.display==="flex"?"none":"flex");}
-function addMessage(sender,text){const m=document.createElement("div");m.innerHTML=`<strong>${sender}:</strong> ${text}`;document.getElementById("messages").appendChild(m);const msgs=document.getElementById("messages");msgs.scrollTop=msgs.scrollHeight;}
+// --- Chatbot Hugging Face ---
+function toggleChat(){
+  const chat = document.getElementById("chatPopup");
+  chat.style.display = (chat.style.display === "flex" ? "none" : "flex");
+}
+
+function addMessage(sender,text){
+  const m = document.createElement("div");
+  m.innerHTML = `<strong>${sender}:</strong> ${text}`;
+  document.getElementById("messages").appendChild(m);
+  const msgs = document.getElementById("messages");
+  msgs.scrollTop = msgs.scrollHeight;
+}
 
 async function sendMessage(){
-const input=document.getElementById("msgInput");
-const text=input.value.trim();
-if(!text) return;
-addMessage("Bạn",text);
-input.value="";
-addMessage("Bot","Đang trả lời...");
-try{
-const apiKey="AIzaSyAUsoZeOAMP57GpnoQWYc6Bkc364nDeG10"; // Thay bằng key thật của bạn
-const endpoint="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateMessage?key="+apiKey;
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+  if(!text) return;
+  addMessage("Bạn", text);
+  input.value = "";
+  addMessage("Bot", "Đang trả lời...");
 
-const body={prompt:{text:text},model:"gemini-2.0-flash"};
-const res=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-const data=await res.json();
-const msgs=document.getElementById("messages");
-if(msgs.lastChild.textContent.includes("Đang trả lời")) msgs.removeChild(msgs.lastChild);
-const reply=data?.candidates?.[0]?.content || "Xin lỗi, tôi không trả lời được.";
-addMessage("Bot",reply);
-}catch(err){console.error(err);addMessage("Bot","Lỗi kết nối API.");}
+  try{
+    const res = await fetch("https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",{
+      method:"POST",
+      headers:{
+        "Authorization": "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",  // Thay bằng token thật
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify({inputs:text})
+    });
+    const data = await res.json();
+    const msgs = document.getElementById("messages");
+    if(msgs.lastChild && msgs.lastChild.textContent.includes("Đang trả lời")) msgs.removeChild(msgs.lastChild);
+    if(data?.generated_text) addMessage("Bot", data.generated_text);
+    else if(Array.isArray(data) && data[0]?.generated_text) addMessage("Bot", data[0].generated_text);
+    else addMessage("Bot", "Xin lỗi, tôi không trả lời được.");
+  } catch(err){
+    console.error(err);
+    addMessage("Bot", "Lỗi kết nối API.");
+  }
 }
 
 // --- Note popup ---
@@ -106,12 +131,39 @@ function openNote(){document.getElementById("notePopup").style.display="block";}
 function closeNote(){document.getElementById("notePopup").style.display="none";}
 
 // --- Kéo thả popup ---
-dragElement(document.getElementById("chatPopup"),document.getElementById("chatHeader"));
+dragElement(document.getElementById("chatPopup"), document.getElementById("chatHeader"));
 dragElement(document.getElementById("notePopup"));
-function dragElement(elmnt,handle){handle=handle||elmnt;let pos1=0,pos2=0,pos3=0,pos4=0;handle.style.cursor='move';handle.onmousedown=dragMouseDown;
-function dragMouseDown(e){e=e||window.event;e.preventDefault();pos3=e.clientX;pos4=e.clientY;document.onmouseup=closeDrag;document.onmousemove=elementDrag;}
-function elementDrag(e){e=e||window.event;e.preventDefault();pos1=pos3-e.clientX;pos2=pos4-e.clientY;pos3=e.clientX;pos4=e.clientY;elmnt.style.top=(elmnt.offsetTop-pos2)+"px";elmnt.style.left=(elmnt.offsetLeft-pos1)+"px";}
-function closeDrag(){document.onmouseup=null;document.onmousemove=null;}
+
+function dragElement(elmnt, handle){
+  handle = handle || elmnt;
+  let pos1=0,pos2=0,pos3=0,pos4=0;
+  handle.style.cursor='move';
+  handle.onmousedown = dragMouseDown;
+
+  function dragMouseDown(e){
+    e = e || window.event;
+    e.preventDefault();
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    document.onmouseup = closeDrag;
+    document.onmousemove = elementDrag;
+  }
+
+  function elementDrag(e){
+    e = e || window.event;
+    e.preventDefault();
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+  }
+
+  function closeDrag(){
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
 }
 </script>
 </body>
